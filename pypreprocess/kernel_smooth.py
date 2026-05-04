@@ -101,7 +101,7 @@ def _crop(X, tol=1.0e-10):
         m = [I[i].min() for i in range(ndim)]
         M = [I[i].max() for i in range(ndim)]
         slices = [slice(m[i], M[i] + 1, 1) for i in range(ndim)]
-        return X[slices]
+        return X[tuple(slices)]
     else:
         return np.zeros((1, ) * ndim)
 
@@ -207,7 +207,7 @@ class LinearFilter(object):
         self._shape = shape_array.astype('uint64').tolist()
         self.fkernel = np.zeros(self._shape)
         slices = [slice(0, kernel.shape[i]) for i in range(kernel.ndim)]
-        self.fkernel[slices] = kernel
+        self.fkernel[tuple(slices)] = kernel
         self.fkernel = npfft.rfftn(self.fkernel)
 
         return kernel
@@ -233,7 +233,7 @@ class LinearFilter(object):
         _X = np.rollaxis(_X, axis)
 
         # convert coordinates to FWHM units
-        if self._fwhm is not 1.0:
+        if self._fwhm != 1.0:
             f = fwhm2sigma(self._fwhm)
             if f.shape == ():
                 f = np.ones(len(self._bshape)) * f
@@ -241,7 +241,7 @@ class LinearFilter(object):
                 _X[i] /= f[i]
 
         # whiten ?
-        if not self._cov is None:
+        if self._cov is not None:
             _chol = scipy.linalg.cholesky(self._cov)
             _X = np.dot(scipy.linalg.inv(_chol), _X)
         # compute squared distance
@@ -308,7 +308,7 @@ class LinearFilter(object):
             raise ValueError('expecting either 3 or 4-d image')
 
         slices = [slice(0, self._bshape[i], 1)
-                  for i in range(len(self._shape))]
+                  for i in range(len(self._bshape))]
         for _scan in range(n_scans):
             if ndim == 4:
                 data = in_data[..., _scan]
@@ -323,7 +323,7 @@ class LinearFilter(object):
             gc.collect()
             _dslice = [slice(0, self._bshape[i], 1) for i in range(3)]
             if self._scale != 1:
-                data = self._scale * data[_dslice]
+                data = self._scale * data[tuple(_dslice)]
             if self._location != 0.0:
                 data += self._location
             gc.collect()
@@ -334,16 +334,16 @@ class LinearFilter(object):
                 _out = data
 
         # collect output
-        _out = _out[[slice(self._kernel.shape[i] // 2, self._bshape[i] +
+        _out = _out[tuple([slice(self._kernel.shape[i] // 2, self._bshape[i] +
                            self._kernel.shape[i] // 2)
-                     for i in range(len(self._bshape))]]
+                     for i in range(len(self._bshape))])]
 
         # return output
         return _out
 
     def _presmooth(self, indata, slices):
         _buffer = np.zeros(self._shape)
-        _buffer[slices] = indata
+        _buffer[tuple(slices)] = indata
 
         return npfft.rfftn(_buffer)
 
